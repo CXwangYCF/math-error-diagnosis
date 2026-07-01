@@ -1,2 +1,43 @@
-# math-error-diagnosis
-an ai product to help solve math problem
+# 错题诊断助手
+
+面向初中生的数学错题诊断网页。用户输入题目、自己的做法和答案后，网页会帮助定位错因、重新讲解知识点、生成 3 天复习计划，并给出同类巩固题。
+
+## 功能
+
+- 错题输入：年级、题目类型、题目、做法、答案、想弄懂的问题
+- 错因诊断：识别知识点、判断错因标签、定位错误步骤
+- 分层讲解：按“本质 -> 本题 -> 迁移方法”重新讲清楚
+- 同类巩固：生成同类题，并检查用户答案
+- 复习计划：给出 3 天复盘建议
+- 错题本：使用浏览器本地存储保存最近诊断记录
+- 报告导出：复制或下载错题复盘报告
+- 示例库：内置函数、方程、几何、不等式、二次函数、概率样例
+
+## 运行
+
+直接用浏览器打开 `index.html` 即可运行，不需要安装依赖。
+
+## 检查
+
+```bash
+node --check app.js
+node smoke-test.js
+```
+
+## 部署到 GitHub Pages
+
+推荐把本文件夹里的内容作为一个单独仓库的根目录提交到 GitHub。
+
+1. 新建 GitHub 仓库，例如 `math-error-diagnosis`
+2. 把 `index.html`、`styles.css`、`app.js`、`README.md`、`.nojekyll` 等文件放到仓库根目录
+3. 推送到 GitHub
+4. 打开仓库 `Settings` -> `Pages`
+5. Source 选择 `Deploy from a branch`
+6. Branch 选择 `main`，目录选择 `/root`
+7. 保存后等待 Pages 生成访问链接
+
+如果你想放在已有仓库里，也可以把这些文件放到 `docs/` 目录，然后在 Pages 里选择 `main /docs`。
+
+## 当前实现说明
+
+当前版本是纯前端静态网页，诊断逻辑由本地规则引擎模拟，适合 GitHub Pages 部署。后续如果要接入真实大模型，可以把 `buildPrompt` 生成的结构化输入发送到模型接口，再将返回结果渲染到诊断结果区。
