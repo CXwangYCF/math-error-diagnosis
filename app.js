@@ -69,6 +69,17 @@ const samples = {
     studentAnswer: "1/3",
     correctAnswer: "3/5",
     goal: "为什么不是从红球里面选一个？"
+  },
+  score: {
+    title: "得分应用题建模",
+    grade: "七年级",
+    module: "auto",
+    difficulty: "基础",
+    problem: "一次小测有 12 道题，每题答对得 4 分，答错或不答得 0 分。小华得了 32 分，问他答对了多少道题？",
+    process: "设答对了 x 道，因为一共有 12 道题，所以 12x=32，解得 x=2.67。",
+    studentAnswer: "2.67 道",
+    correctAnswer: "8 道",
+    goal: "为什么不能用总题数乘 x？"
   }
 };
 
@@ -84,6 +95,12 @@ const knowledgeRules = [
     module: "函数",
     point: "二次函数图像与性质",
     keywords: ["二次函数", "抛物线", "顶点", "对称轴", "开口", "y=x²", "y=ax", "最值"]
+  },
+  {
+    id: "score-equation",
+    module: "方程与不等式",
+    point: "方程应用题：得分与数量关系",
+    keywords: ["每题", "得分", "答对", "答错", "不答", "选择题", "测验", "总分", "多少道题", "道题"]
   },
   {
     id: "equation",
@@ -143,6 +160,11 @@ const practiceBank = {
     question: "求二次函数 y=x²-6x+5 的顶点坐标。",
     answer: "(3,-4)",
     hint: "配方得到 y=(x-3)²-4。"
+  },
+  "score-equation": {
+    question: "一次小测有 15 道题，每题答对得 6 分，答错或不答得 0 分。小李得了 72 分，他答对了多少道题？",
+    answer: "12",
+    hint: "设答对 x 道，应列 6x=72，而不是 15x=72。"
   },
   equation: {
     question: "解方程：2(x+3)-5=x+4。",
@@ -258,9 +280,28 @@ function includesAny(text, words) {
   return words.some((word) => text.includes(word));
 }
 
-function detectErrorTags({ knowledge, process, problem, answerComparison }) {
+function extractScoreContext(problem) {
+  const text = String(problem || "");
+  const perScore = text.match(/每题[^0-9]*(\d+)\s*分/)?.[1];
+  const totalScore =
+    text.match(/(?:得了|得分为|得分是|总分为|总分是|总分)\s*(\d+)\s*分/)?.[1] ||
+    text.match(/(?:测验|考试|小测)[^。；，,]*?得\s*(\d+)\s*分/)?.[1];
+  const totalQuestions = text.match(/(?:共|共有|有)\s*(\d+)\s*道/)?.[1] || text.match(/(\d+)\s*道(?:选择题|题)/)?.[1];
+  return { perScore, totalScore, totalQuestions };
+}
+
+function formatScoreEquation(context) {
+  const details = extractScoreContext(context?.problem);
+  if (details.perScore && details.totalScore) {
+    return `${details.perScore}x=${details.totalScore}`;
+  }
+  return "每题得分 × 答对题数 = 总得分";
+}
+
+function detectErrorTags({ knowledge, process, problem, answerComparison, studentAnswer }) {
   const processText = normalize(process);
   const problemText = normalize(problem);
+  const answerText = normalize(studentAnswer);
   const tags = new Set();
 
   if (!process.trim() || process.trim().length < 18) {
@@ -287,6 +328,19 @@ function detectErrorTags({ knowledge, process, problem, answerComparison }) {
   if (knowledge.id === "equation") {
     if (includesAny(processText, ["3x-10", "移项变号", "等式两边"])) tags.add("calculation");
     if (!includesAny(processText, ["去括号", "合并", "移项", "等式"])) tags.add("logic");
+  }
+
+  if (knowledge.id === "score-equation") {
+    const details = extractScoreContext(problem);
+    if (details.totalQuestions && processText.includes(`${details.totalQuestions}x`)) {
+      tags.add("concept");
+    }
+    if (answerText.includes(".") || processText.includes(".")) {
+      tags.add("reading");
+    }
+    if (!includesAny(processText, ["设", "x", "答对"])) {
+      tags.add("logic");
+    }
   }
 
   if (knowledge.id === "inequality") {
@@ -323,7 +377,7 @@ function detectErrorTags({ knowledge, process, problem, answerComparison }) {
   return Array.from(tags);
 }
 
-function buildLocation(knowledge, tags) {
+function buildLocation(knowledge, tags, context = {}) {
   if (tags.includes("expression")) {
     return "你写下来的步骤还不够完整，所以我只能先判断大方向。建议补上列式、代入、化简这几步，这样能更准确地找到卡点。";
   }
@@ -338,6 +392,13 @@ function buildLocation(knowledge, tags) {
 
   if (knowledge.id === "equation") {
     return "你大概率是在去括号或合并同类项时把符号算错了。方程每一步都要保持等式两边平衡，常数项尤其要单独检查。";
+  }
+
+  if (knowledge.id === "score-equation") {
+    const equation = formatScoreEquation(context);
+    const details = extractScoreContext(context.problem);
+    const totalText = details.totalQuestions ? `题目里的 ${details.totalQuestions} 道是“总题数”，不是每答对一道增加的分数。` : "";
+    return `你主要错在方程建模：如果设 x 为答对题数，应该用“每题得分 × 答对题数 = 总得分”，也就是 ${equation}。${totalText}另外，答对题数必须是整数，不能出现 3.75 道这样的答案。`;
   }
 
   if (knowledge.id === "inequality") {
@@ -359,7 +420,8 @@ function buildLocation(knowledge, tags) {
   return "你主要卡在“知道知识点”到“能写出正确步骤”的连接处。建议逐行检查：用了哪个条件、套了哪个关系、推出了什么结论。";
 }
 
-function buildLevels(knowledge, tags) {
+function buildLevels(knowledge, tags, context = {}) {
+  const scoreEquation = formatScoreEquation(context);
   const base = {
     "linear-function": [
       ["先记住本质", "y=kx+b 中，b 是图像和 y 轴的交点；k 是变化速度，也就是 x 每增加 1，y 增加多少。"],
@@ -375,6 +437,11 @@ function buildLevels(knowledge, tags) {
       ["先记住本质", "解方程就是让等式两边一直保持平衡。你可以移项、化简，但左右两边的关系不能被破坏。"],
       ["这道题怎么做", "3(x-2)+4 应该化成 3x-6+4，也就是 3x-2，不是 3x-10。后面再移项求出 x=7。"],
       ["下次怎么判断", "去括号后先把常数项合并完，再移项。不要一边去括号一边移项，容易把符号弄乱。"]
+    ],
+    "score-equation": [
+      ["先记住本质", "这类题的未知数通常是“答对了几道”。总题数只是上限或背景条件，不是乘在 x 前面的得分。"],
+      ["这道题怎么做", `设 x 为答对题数，应列“每题得分 × x = 总得分”，即 ${scoreEquation}。解出 x 后，还要确认它是整数且不超过总题数。`],
+      ["下次怎么判断", "看到“每题多少分、共得多少分、问答对几道”，先找每答对一道贡献多少分，再用总得分除以每题得分。"]
     ],
     inequality: [
       ["先记住本质", "不等式应用题最后要回到实际情境。能不能取小数、要不要取整数，取决于题目问的是什么。"],
@@ -424,6 +491,11 @@ function buildStrategies(knowledge, tags) {
 
   if (knowledge.module === "概率统计") {
     strategies.unshift("概率统计题先分清“目标数量”和“总数量”。");
+  }
+
+  if (knowledge.id === "score-equation") {
+    strategies.unshift("得分应用题先分清“总题数、每题分值、总得分”，不要把总题数当成每题分值。");
+    strategies.push("如果未知数表示“几道题、几个人、几本书”，最终答案通常要是整数。");
   }
 
   if (tags.includes("calculation")) {
@@ -496,8 +568,8 @@ function createDiagnosisFromInput() {
 
   const knowledge = detectKnowledge(problem, process, moduleValue);
   const answerComparison = compareAnswers(studentAnswer, correctAnswer);
-  const tags = detectErrorTags({ knowledge, process, problem, answerComparison });
-  const levels = buildLevels(knowledge, tags);
+  const tags = detectErrorTags({ knowledge, process, problem, answerComparison, studentAnswer, correctAnswer });
+  const levels = buildLevels(knowledge, tags, { problem, process, studentAnswer, correctAnswer, goal });
   const strategies = buildStrategies(knowledge, tags);
   const plan = buildPlan(knowledge, tags);
   const practice = practiceBank[knowledge.id] || practiceBank.default;
@@ -555,7 +627,7 @@ function renderDiagnosis(result) {
   const primaryTag = tagMeta[result.tags[0]]?.label || "知识点还不稳定";
   $("#oneLine").textContent = primaryTag;
   $("#diagnosisSummary").textContent = `这道题考查 ${result.knowledge.point}。建议先修正“${primaryTag}”，再做同类题确认是否掌握。`;
-  $("#errorLocation").textContent = buildLocation(result.knowledge, result.tags);
+  $("#errorLocation").textContent = buildLocation(result.knowledge, result.tags, result);
 
   $("#levelList").innerHTML = result.levels
     .map(([title, content]) => `<div class="level-item"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(content)}</span></div>`)
@@ -594,7 +666,7 @@ ${result.problem}
 ${result.process}
 
 具体错在哪里：
-${buildLocation(result.knowledge, result.tags)}
+${buildLocation(result.knowledge, result.tags, result)}
 
 怎么重新学会：
 ${levels}

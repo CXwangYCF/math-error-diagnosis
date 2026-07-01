@@ -24,6 +24,29 @@ node --check app.js
 node smoke-test.js
 ```
 
+## 部署到 GitHub Pages
+
+推荐把本文件夹里的内容作为一个单独仓库的根目录提交到 GitHub。
+
+1. 新建 GitHub 仓库，例如 `math-error-diagnosis`
+2. 把 `index.html`、`styles.css`、`app.js`、`README.md`、`.nojekyll` 等文件放到仓库根目录
+3. 推送到 GitHub
+4. 打开仓库 `Settings` -> `Pages`
+5. Source 选择 `Deploy from a branch`
+6. Branch 选择 `main`，目录选择 `/root`
+7. 保存后等待 Pages 生成访问链接
+
+如果你想放在已有仓库里，也可以把这些文件放到 `docs/` 目录，然后在 Pages 里选择 `main /docs`。
+
 ## 当前实现说明
 
-当前版本是纯前端静态网页，诊断逻辑由本地规则引擎模拟，适合 GitHub Pages 部署。后续如果要接入真实大模型，可以把 `buildPrompt` 生成的结构化输入发送到模型接口，再将返回结果渲染到诊断结果区。
+当前版本是纯前端静态网页，诊断逻辑由本地规则引擎完成，适合 GitHub Pages 部署。规则引擎已经支持常见题型的错因识别和上下文讲解，但它不是通用大模型。
+
+如果后续要接入真实大模型，不建议在前端直接写 API Key。更稳的方式是：
+
+1. 前端收集题目、做法、答案和目标问题
+2. 调用自己的后端或 Serverless Function
+3. 后端读取环境变量里的模型 API Key
+4. 后端把模型返回的结构化诊断结果发回前端
+
+这样既能提升开放题的诊断质量，也不会把密钥暴露在 GitHub Pages 的静态文件里。
