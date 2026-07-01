@@ -24,19 +24,7 @@ node --check app.js
 node smoke-test.js
 ```
 
-## 部署到 GitHub Pages
 
-推荐把本文件夹里的内容作为一个单独仓库的根目录提交到 GitHub。
-
-1. 新建 GitHub 仓库，例如 `math-error-diagnosis`
-2. 把 `index.html`、`styles.css`、`app.js`、`README.md`、`.nojekyll` 等文件放到仓库根目录
-3. 推送到 GitHub
-4. 打开仓库 `Settings` -> `Pages`
-5. Source 选择 `Deploy from a branch`
-6. Branch 选择 `main`，目录选择 `/root`
-7. 保存后等待 Pages 生成访问链接
-
-如果你想放在已有仓库里，也可以把这些文件放到 `docs/` 目录，然后在 Pages 里选择 `main /docs`。
 
 ## 当前实现说明
 
